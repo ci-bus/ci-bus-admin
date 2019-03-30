@@ -1,0 +1,90 @@
+.hljs-comment,
+.hljs-quote {
+  color: #8e908c;
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+  color: #c82829;
+}
+
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+  color: brown;
+}
+
+.hljs-attr,
+.hljs-attribute {
+  color: black;
+}
+
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+  color: purple;
+}
+
+.hljs-title,
+.hljs-section {
+  color: #4271ae;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+  color: blue;
+}
+
+.hljs {
+  display: block;
+  overflow-x: auto;
+  color: #000;
+  padding: 0.5em;
+}
+
+.bs-callout.code pre .hljs {
+	background: #fff;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
+}
+
+.bs-callout {
+	background: #fff;
+}
+
+.bs-callout .bs-callout, .bs-callout pre, code.hljs {
+	background: #f8f8f8;
+}
+
+.bs-callout .bs-callout .bs-callout {
+	background: #fff;
+}
+
+.bs-callout.code {
+	background: #f1f1f1;
+	position: relative;
+}
+
+.bs-callout.code pre {
+	background: #fff;
+	border: 1px solid #eee;
+	border-left: 3px solid #eee;
+}
