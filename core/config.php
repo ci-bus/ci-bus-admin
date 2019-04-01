@@ -5,7 +5,7 @@
 	    public $config = array(
 	        
 	        // General
-	        "default_module" => "ci-bus-admin",
+	        "default_module" => "main",
 	        "charset" => "UTF-8",
 	        "title" => "Ci-bus Admin",
 	        "favicon" => array(

@@ -5,9 +5,8 @@ cb.define({
     onload: function () {
         //alert('Controller loaded!')
         cb.loadAll([
-            //['view', 'common', 'base'],
             ['store', 'user', 'user', {action: 'get'}],
-            //['view', 'user', 'main']
+            ['view', 'user', 'user']
         ], function () {
             
         });

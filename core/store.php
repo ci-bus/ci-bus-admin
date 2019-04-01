@@ -228,7 +228,7 @@
 		      return true;
 		  }
 		  
-		  public function scanFiles($f, $f2) {
+		  public function scanFiles($f, $f2 = null) {
 		      $files = array_diff(scandir($f), array('..', '.'));
 		      $res = array();
 		      foreach ($files as $file) {
