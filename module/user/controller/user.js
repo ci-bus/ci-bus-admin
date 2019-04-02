@@ -38,6 +38,7 @@ cb.define({
                         }
                     },
                     */
+                    fields: ['email', 'type'],
                     beforeItems: {
                         xtype: 'button',
                         text: 'Extra 1'

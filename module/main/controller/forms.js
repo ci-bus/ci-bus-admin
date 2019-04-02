@@ -85,12 +85,14 @@ cb.define({
         // Add columns table
         var defStore = cb.getStore(config.defStore);
         for (field in defStore.getData('fields')) {
-            var f = defStore.getData('fields')[field];
-            opt.columns.push({
-                name: f['translate'],
-                text: '{' + field + '}',
-                type: '{ctype}'
-            });
+            if (!config.browse || !config.browse.fields || config.browse.fields.indexOf(field) > -1) {
+                var f = defStore.getData('fields')[field];
+                opt.columns.push({
+                    name: f['translate'],
+                    text: '{' + field + '}',
+                    type: '{ctype}'
+                });
+            }
         }
         // Add buttons refresh, search and new
         config.beforeItems = {
