@@ -47,7 +47,11 @@
             $this->db = new Db();
             $this->config = array(
                 'engine' => 'InnoDB',
-                'errors' => array()
+                'errors' => array(),
+                'auto_create_table' => false,
+                'order_by' => array('id', 'DESC'),
+                'group_by' => null,
+                'limit' => 10
             );
             if (is_array($config)) {
                 $this->setConfig($config);
@@ -138,6 +142,55 @@
                 return false;
             }
             return true;
+        }
+
+        public function getFieldsList () {
+            $fields = $this->getTable("fields");
+            $list = array();
+            foreach ($fields as $f => $p) {
+                array_push($list, $f);
+            }
+            return $list;
+        }
+
+        public function get () {
+            $config = $this->getConfig();
+            $fields = $this->getFieldsList();
+            $this->db->reset();
+            $this->db->select("id, ".implode(",", $fields));
+            $this->db->from($this->getTable("name"));
+            if ($config['order_by']) {
+                if (is_array($config['order_by'])) {
+                    $this->db->orderBy(implode(' ', $config['order_by']));
+                } else {
+                    $this->db->orderBy($config['order_by']);
+                }
+            }
+            if ($config['group_by']) {
+                $this->db->groupBy($config['order_by']);
+            }
+            if ($config['limit']) {
+                $this->db->limit($config['limit']);
+            }
+            if (is_numeric($config['page']) && is_numeric($config['limit'])) {
+                $this->db->limit(($config['limit'] * $config['page']).", ".$config['limit']);
+            }
+            $data = $this->db->getArray();
+            if (!$data) {
+                $this->error($this->db->error());
+                $total = 0;
+            } else {
+                $this->db->reset();
+                $this->db->select("count(id) as count");
+                if ($config['group_by']) {
+                    $this->db->groupBy($config['order_by']);
+                }
+                $count = $this->db->get($this->getTable("name"));
+            }
+            return array(
+                'count' => $count->count,
+                'record' => $data
+            );
         }
     }
 ?>

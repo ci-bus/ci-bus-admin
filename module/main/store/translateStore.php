@@ -4,7 +4,12 @@
             if ($lang == 'es') {
                 $this->parseStore('translate', array(
                     'apps' => 'Aplicaciones',
-                    'users' => 'Usuarios'
+                    'users' => 'Usuarios',
+                    'new' => 'Nuevo',
+                    'back' => 'Atrás',
+                    'edit' => 'Editar',
+                    'return' => 'Volver',
+                    'delete' => 'Eliminar'
                 ));
             }
         }

@@ -12,6 +12,7 @@ cb.define({
     onload: function () {
         cb.setConfig('lang', 'es');
         cb.loadAll([
+            ['controller', 'main', 'forms'],
             ['store', 'main', 'translate', cb.getConfig('lang')],
             ['component', 'main', 'menu'],
             ['component', 'main', 'desktop'],
