@@ -39,6 +39,7 @@ cb.define({
                     },
                     */
                     fields: ['email', 'type'],
+                    /*
                     beforeItems: {
                         xtype: 'button',
                         text: 'Extra 1'
@@ -47,18 +48,20 @@ cb.define({
                         xtype: 'button',
                         text: 'Extra 2'
                     }
+                    */
                 },
 
-                view: {
-                    /*
+                view: { // Optional configs
+                    
                     opt: {
                         type: 'primary',
                         head: {
                             text: 'Datos del usuario'
                         }
-                        // ...
                     },
-                    */
+                    /*
+                    fields: ['email', 'type'],
+
                     beforeItems: {
                         xtype: 'button',
                         text: 'Extra 1'
@@ -67,6 +70,7 @@ cb.define({
                         xtype: 'button',
                         text: 'Extra 2'
                     }
+                    */
                 }
             });
         });

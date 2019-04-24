@@ -9,7 +9,11 @@
                     'back' => 'Atrás',
                     'edit' => 'Editar',
                     'return' => 'Volver',
-                    'delete' => 'Eliminar'
+                    'delete' => 'Eliminar',
+                    'search' => 'Buscar',
+                    'refresh' => 'Recargar',
+                    'view' => 'Ver',
+                    'save' => 'Guardar'
                 ));
             }
         }
