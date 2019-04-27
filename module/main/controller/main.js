@@ -13,10 +13,10 @@ cb.define({
         cb.setConfig('lang', 'es');
         cb.loadAll([
             ['controller', 'main', 'forms'],
-            ['store', 'main', 'translate', cb.getConfig('lang')],
-            ['component', 'main', 'menu'],
+            ['component', 'main', 'menubar'],
             ['component', 'main', 'desktop'],
             ['component', 'main', 'forms'],
+            ['store', 'main', 'translate'],
             ['view', 'main', 'main']
         ], function () {
             cb.router.hashchange();
@@ -30,6 +30,7 @@ cb.define({
             console.log('Opening app ' + hash[1]);
             this.closeAllApps();
             this.renderAppContainer(hash[1]);
+            // Load controller of app
             cb.load('controller', hash[1], hash[1]);
         }
     },

@@ -79,6 +79,11 @@
 				"data: ".json_encode($data, true).
 				"}); ";
 		}
+
+		public function parseStoreData($name, $data)
+		{
+			echo "cb.getStore('".$name."').setData(".json_encode($data, true).");";
+		}
 		
 		public function parseVar($name, $data){
 			echo "var ".$name."=".json_encode($data, true)."; ";
@@ -86,6 +91,13 @@
 		
 		public function parseConfig($name, $data){
 			echo "cb.setConfig('".$name."', ".json_encode($data, true)."); ";
+		}
+
+		public function parseResponse($type, $data) {
+			echo json_encode(array(
+				'response' => $type,
+				'data' => $data
+			), true);
 		}
 		
 		public function utf8Converter($ar)

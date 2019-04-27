@@ -153,13 +153,18 @@
             return $list;
         }
 
-        public function get () {
+        public function get ($where, $order) {
             $config = $this->getConfig();
             $fields = $this->getFieldsList();
             $this->db->reset();
+            if ($where) {
+                $this->db->where($where);
+            }
             $this->db->select("id, ".implode(",", $fields));
             $this->db->from($this->getTable("name"));
-            if ($config['order_by']) {
+            if ($order) {
+                $this->db->orderBy(implode(' ', $order));
+            } else if ($config['order_by']) {
                 if (is_array($config['order_by'])) {
                     $this->db->orderBy(implode(' ', $config['order_by']));
                 } else {
@@ -191,6 +196,47 @@
                 'count' => $count->count,
                 'record' => $data
             );
+        }
+
+        public function update ($data) {
+            $config = $this->getConfig();
+            $this->db->reset();
+            $this->db->where('id', $data['id']);
+            $res = $this->db->update($this->getTable("name"), $data);
+            if ($res) {
+                return $this->get(array(
+                    'id' => $data['id']
+                ));
+            } else {
+                return false;
+            }
+        }
+
+        public function insert ($data) {
+            $config = $this->getConfig();
+            $this->db->reset();
+            $this->db->insert($this->getTable("name"), $data);
+            $id = $this->db->getInsertId();
+            if ($id) {
+                return $this->get(array(
+                    'id' => $id
+                ));
+            } else {
+                return false;
+            }
+        }
+
+        public function delete ($data) {
+            $config = $this->getConfig();
+            $this->db->reset();
+            $this->db->where(array(
+                'id' => $data['id']
+            ));
+            if (!$this->db->delete($this->getTable("name"))) {
+                $this->error($this->db->error());
+                return false;
+            }
+            return true;
         }
     }
 ?>

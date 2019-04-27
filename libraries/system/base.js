@@ -126,6 +126,9 @@ cb.elenamed = 0;
 cb.eleids = 0;
 cb.zIndex = 2;
 
+// To proccess load lineal
+cb.loadLinealOrder = [];
+
 // Por defecto cuando un record es un array
 // se crea un elemento por cada valor
 // añadiendo el xtype a este array lo evitamos
@@ -673,6 +676,61 @@ cb.base.store = {
         }
         // Apply filters
         this.applyFilters(field);
+    },
+
+    get: function (data, callback, callObj) {
+        if (data) data = $.param(data);
+        this.call('GET', data, callback, callObj);
+    },
+
+    post: function (data, callback, callObj) {
+        this.call('POST', data, callback, callObj);
+    },
+
+    put: function (data, callback, callObj) {
+        this.call('PUT', data, callback, callObj);
+    },
+
+    delete: function (data, callback, callObj) {
+        this.call('DELETE', data, callback, callObj);
+    },
+
+    call: function (method, data, callback, callObj) {
+        if ($.isFunction(data)) {
+            callback = data;
+            data = null;
+        }
+        if ($.isPlainObject(callback)) {
+            obj = callback;
+            callback = null;
+        }
+        if (!callObj) callObj = {};
+        if (!callObj.method) callObj.method = method;
+        if (!callObj.url) callObj.url = this.url;
+        if (data) {
+            if (method == 'GET') {
+                callObj.dataType = 'script';
+                if ($.isPlainObject(data)) {
+                    for (v in data) {
+                        callObj.url += '&' + v + '=' + data[v];
+                    }
+                } else if ($.type(data) == 'string') {
+                    callObj.url += '&' + data;
+                } else {
+                    callObj.url += 'data=' + JSON.stringify(data);
+                }
+            } else {
+                callObj.dataType = 'json';
+                callObj.data = {
+                    data: $.isPlainObject(data)? JSON.stringify(data): data
+                };
+            }
+        }
+        if (!callObj.dataType) callObj.dataType = 'script';
+        if ($.isFunction(callback) && !callObj.success) {
+            callObj.success = callback;
+        }
+        return $.ajax(callObj);
     }
 };
 
@@ -1067,9 +1125,9 @@ cb.base.grid = {
                     record = cb.clone(record);
                     cb.alterdata(opt.alterdata, record, opt);
                 }
-                var tbody = cb.module.bootstrapComponent['tbody']({
-                    items: bodyItems
-                }, record);
+                var opt2 = opt.body.table || opt.table || {};
+                opt2.items = bodyItems;
+                var tbody = cb.module.bootstrapComponent['tbody'](opt2, record);
                 if ($.isNumeric(pos)) {
                     if (pos) {
                         if (pos <= this.find('table.grid-main-table').find('tbody').find('tr').length) {
@@ -1366,38 +1424,49 @@ cb.getCmp = function(ref, idx) {
 };
 
 // Funcion para enviar un formulario a un store PHP
-cb.send = function(formn, module, store, callback)
+cb.send = function(formn, store, callback)
 {
-    $.ajax({
-      dataType: "script",
-      cache: true,
-      url: module+'/store/'+store,
-      method: 'POST',
-      contentType: "application/x-www-form-urlencoded;charset=UTF-8",
-      data: $.type(formn) == 'string'? $("form[name='"+formn+"']").serializeArray(): formn,
-      success: callback
+    var form = cb.getCmp("form[name='"+formn+"']"),
+        data = cb.getCmp("form[name='"+formn+"']").getRecord();
+    form.serializeArray().forEach(function (d) {
+        data[d['name']] = d['value'];
     });
+    cb.getStore(store).post(data, callback);
 };
 
 // Funciona para cargar varios controladores y vistas en una sola llamada
-cb.loadAll = function(dt, callback)
+cb.loadAll = function(arr, callback)
 {
-    $.ajax({
-        dataType: "script",
-        cache: true,
-        method: 'post',
-        data: {data:JSON.stringify(dt)},
-        url: 'loadAll',
-        success: callback
-    });
+    if (!$.isArray(arr[0]) && $.isArray(arr)) {
+        arr = [arr];
+    }
+    if ($.isArray(arr)) {
+        arr.forEach(function (a) {
+            // Save order info
+            cb.loadLinealOrder.push({
+                xtype: a[0],
+                name: $.type(a[2]) == 'string'? a[2]: a[1]
+            });
+            cb.load(a[0], a[1], a[2], a[3]);
+        });
+        // Save callback function
+        if ($.isFunction(callback)) {
+            cb.loadLinealOrder.push({
+                xtype: 'callback',
+                fun: callback
+            });
+        }
+    } else {
+        console.error('Invalid values to cb.loadAll', arr);
+    }
 };
 
 // Funcion igual que loadAll pero haciendo una llamada por archivo
-cb.loadLineal = function (arr)
+cb.loadLineal = function (arr, callback)
 {
     if ($.isArray(arr[0]))
     {
-        cb.load(arr[0][0], arr[0][1], arr[0][2], arr[0][3], cb.loadSecondLineal(arr, 0));
+        cb.load(arr[0][0], arr[0][1], arr[0][2], arr[0][3], arr[1]? cb.loadSecondLineal(arr, 0, callback): callback);
     }
     else if ($.isArray(arr) && arr.length > 2)
     {
@@ -1405,13 +1474,13 @@ cb.loadLineal = function (arr)
     }
 };
 
-cb.loadSecondLineal = function(arr, n)
+cb.loadSecondLineal = function(arr, n, callback)
 {
-    return function(data, textStatus, jqXHR) {
+    return function() {
         n++;
         if ($.isArray(arr[n]))
         {
-            cb.load(arr[n][0], arr[n][1], arr[n][2], arr[n][3], cb.loadSecondLineal(arr, n));
+            cb.load(arr[n][0], arr[n][1], arr[n][2], arr[n][3], arr[n + 1]? cb.loadSecondLineal(arr, n, callback): callback);
         }
     };
 };
@@ -1438,42 +1507,42 @@ cb.load = function(type, module, name, data, callback)
     if ($.isPlainObject(data)) {
         cb.module.parseData[name] = data;
     }
-    if (type == 'store')
-    {
-        $.ajax({
-          dataType: "script",
-          cache: true,
-          url: module+'/'+type+'/'+name,
-          method: 'post',
-          data: data,
-          success: callback
-        });
+    if (type != 'controller') {
+        name += type.charAt(0).toUpperCase() + type.slice(1) + '.js';
+    } else {
+        name += '.js';
     }
-    else if (type == 'component')
-    {       
-        if (!this.module.component[name])
-        {
-            this.module.component[name] = {};
-        }
-        
-        $.ajax({
-          dataType: "script",
-          cache: true,
-          url: module+'/'+type+'/'+name,
-          method: 'post',
-          data: data,
-          success: callback
-        });
-    }
-    else
-    {
-        $.cachedScript(module+'/'+type+'/'+name,'js').done(callback);
-    }
+    $.cachedScript('module/'+module+'/'+type+'/'+name,'js').done(callback);
 };
 
 // Funcion para definir un controlador, vista, store o componente
-cb.define = function(obj)
+cb.define = function(obj, direct)
 {
+    // Load lineal proccess
+    if (!direct && cb.loadLinealOrder.length) {
+        for (var i = 0; i < cb.loadLinealOrder.length; i ++) {
+            var dt = cb.loadLinealOrder[i];
+            if (dt.xtype == obj.xtype && dt.name == obj.name) {
+                break;
+            }
+        }
+        if (i < cb.loadLinealOrder.length) {
+            cb.loadLinealOrder[i].obj = obj;
+            if (!cb.loadLinealOrder.filter(function (dt) { return !dt.obj && dt.xtype != 'callback'; }).length) {
+                var llo = cb.loadLinealOrder;
+                cb.loadLinealOrder = [];
+                llo.forEach(function (dt) {
+                    if (dt.xtype == 'callback') {
+                        dt.fun();
+                    } else {
+                        cb.define(dt.obj, true);
+                    }
+                });
+            }
+            return;
+        }
+    }
+
     if (obj.name && obj.xtype)
     {   
         if (!$.isArray(obj.data) && this.module[obj.xtype][obj.name])
@@ -1546,6 +1615,14 @@ cb.define = function(obj)
                 }
             }
         }
+    } else {
+        console.error('Bad object to cb.define, xtype or name is missing', opt);
+    }
+    if (cb.loadLinealOrder[0] && cb.loadLinealOrder[0].xtype == 'callback') {
+        if ($.isFunction(cb.loadLinealOrder[0].fun)) {
+            cb.loadLinealOrder[0].fun();
+        }
+        cb.loadLinealOrder = cb.loadLinealOrder.slice(1);
     }
 };
 

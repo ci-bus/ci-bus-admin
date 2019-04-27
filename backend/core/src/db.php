@@ -134,22 +134,20 @@ class Db extends Config {
 		
 		public function delete($table = false)
 		{
-			if (!$this->getPart("where")) {
-				
+			if (!$this->getPart("where"))
+			{
 				$this->error("WHERE is missing");
 				return false;
-				
-			}else if ($table) {
-				
+			}
+			else if ($table)
+			{
 				$this->from($table);
-
 				$query = "DELETE FROM ".$this->getPart("from");
-				
 				$query .= " WHERE ".$this->getPart("where");
-				
 				return $this->query($query);
-			} else {
-				
+			}
+			else
+			{
 				return false;
 			}
 		}

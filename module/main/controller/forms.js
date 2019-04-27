@@ -111,7 +111,7 @@ cb.define({
                 store: 'translate',
                 title: '{refresh}',
                 click: $.isFunction(config.refresh)? config.refresh: function () {
-                    cb.load('store', config.module, config.store, {action: 'get'});
+                    cb.getStore(config.store).get();
                 }
             }, {
                 xtype: 'button',
@@ -123,7 +123,12 @@ cb.define({
                 type: 'success',
                 glyphicon: 'plus',
                 store: 'translate',
-                text: ' {new}'
+                text: ' {new}',
+                click: function () {
+                    cb.ctr('forms', 'new', {
+                        name: name
+                    });
+                }
             }]
         };
         // Add custon beforeItems
@@ -259,7 +264,7 @@ cb.define({
                 glyphicon: 'erase',
                 text: ' {delete}',
                 click: function () {
-
+                    cb.ctr('forms', 'delete', data);
                 }
             }]
         };
@@ -361,7 +366,8 @@ cb.define({
             items: {
                 xtype: 'form',
                 name: 'form-edit-' + data.name,
-                items: t_body
+                items: t_body,
+                record: data.record
             }
         }];
         // Set Head
@@ -460,11 +466,279 @@ cb.define({
         cb.create(opt);
     },
 
-    save: function (data) {
+    /*----------*\
+    |     NEW    |
+    \*----------*/
+    new: function (data) {
         var config = cb.cloneObject(this.getFormsConfig(data.name));
-        cb.send('form-edit-' + data.name, config.module, config.store, function(){
-            alert('Formulario enviado');
+        var opt = {
+            xtype: 'panel',
+            items: []
+        };
+        var t_head, t_body = [], t_footer;
+        // Head, Footer
+        if (config.new && config.new.opt) {
+            t_head = config.new.opt.head || config.head;
+            t_footer = config.new.opt.footer || config.footer;
+        } else {
+            t_head = config.head;
+            t_footer = config.footer;
+        }
+        // Fields values
+        var defStore = cb.getStore(config.defStore);
+        for (field in defStore.getData('fields')) {
+            if (!config.new || !config.new.fields || config.new.fields.indexOf(field) > -1) {
+                var f = defStore.getData('fields')[field];
+                t_body.push({
+                    xtype: 'form-group',
+                    pull: 'left',
+                    margin: '0 10px 0 0',
+                    items: [{
+                        xtype: 'label',
+                        text: f['translate']
+                    }, cb.ctr('forms', 'getInputFromType', {
+                        field: field,
+                        type: f,
+                        placeholder: f['translate']
+                    })]
+                });
+            }
+        }
+        t_body = [{
+            xtype: 'container',
+            type: 'fluid',
+            padding: '10px 10px 0',
+            items: {
+                xtype: 'form',
+                name: 'form-new-' + data.name,
+                items: t_body
+            }
+        }];
+        // Set Head
+        opt.items.push({
+            xtype: 'head',
+            items: t_head
         });
+        // Set body
+        // Add buttons back, new
+        config.beforeItems = {
+            xtype: 'div',
+            padding: '5px 0 0 5px',
+            css: {
+                'border-bottom': '1px solid #DDD'
+            },
+            defaults: {
+                margin: '0 5px 5px 0'
+            },
+            items: [{
+                xtype: 'button',
+                glyphicon: 'chevron-left',
+                store: 'translate',
+                title: '{return}',
+                click: function () {
+                    cb.ctr('forms', 'browse', data.name);
+                }
+            }, {
+                xtype: 'button',
+                type: 'warning',
+                store: 'translate',
+                glyphicon: 'floppy-disk',
+                text: ' {save}',
+                click: function () {
+                    cb.ctr('forms', 'save', data);
+                }
+            }]
+        };
+        // Add custon beforeItems
+        if (cb.fetchFromObject(config, 'new.beforeItems')) {
+            if (!$.isArray(config.new.beforeItems)) {
+                config.new.beforeItems = [config.new.beforeItems];
+            }
+            config.beforeItems.items = config.beforeItems.items.concat(config.new.beforeItems);
+        }
+        t_body.unshift(config.beforeItems);
+        // Set Fields
+        opt.items.push({
+            xtype: 'body',
+            overflow: 'auto',
+            padding: 0,
+            items: t_body
+        });
+        // Set after table items
+        config.afterItems = {
+            xtype: 'div',
+            padding: '5px 0 0 5px',
+            css: {
+                'border-top': '1px solid #DDD'
+            },
+            defaults: {
+                margin: '0 5px 5px 0'
+            },
+            items: []
+        };
+        if (cb.fetchFromObject(config, 'new.afterItems')) {
+            if (!$.isArray(config.new.afterItems)) {
+                config.new.afterItems = [config.new.afterItems];
+            }
+            config.afterItems.items = config.afterItems.items.concat(config.new.afterItems);
+        }
+        if (config.afterItems.items.length) {
+            t_body.push(config.afterItems);
+        }
+        // Set footer
+        opt.items.push({
+            xtype: 'footer',
+            items: t_footer
+        });
+        // Set type
+        opt.type = config.type;
+        // Extends opt
+        if (cb.fetchFromObject(config, 'new.opt')) {
+            opt = $.extend(opt, config.new.opt);
+        }
+        // Container to tender
+        opt.renderTo = config.renderTo;
+
+        cb.create(opt);
+    },
+
+    /*-----------*\
+    |     SAVE    |
+    \*-----------*/
+    save: function (data) {
+        var ctr = this,
+            config = cb.cloneObject(this.getFormsConfig(data.name));
+        if (data.record) { // Edit
+            var form = cb.getCmp("form[name='form-edit-" + data.name + "']"),
+                dataToSend = data.record;
+            form.serializeArray().forEach(function (d) {
+                dataToSend[d['name']] = d['value'];
+            });
+            cb.getStore(config.store).post(dataToSend, function (res) {
+                data.record = res.data.record[0];
+                ctr.updateRecord(data, res.data.record[0]);
+                ctr.view(data);
+            });
+        } else { // New
+            var form = cb.getCmp("form[name='form-new-" + data.name + "']"),
+                dataToSend = {};
+            form.serializeArray().forEach(function (d) {
+                dataToSend[d['name']] = d['value'];
+            });
+            cb.getStore(config.store).put(dataToSend, function (res) {
+                if (res.response == 'success') {
+                    ctr.updateRecord(data, res.data.record[0]);
+                    cb.ctr('forms', 'browse', data.name);
+                } else {
+                    console.error(res.data);
+                }
+            });
+        }
+    },
+
+    /*-----------*\
+    |    DELETE   |
+    \*-----------*/
+    delete: function (data) {
+        var ctr = this,
+            config = cb.cloneObject(this.getFormsConfig(data.name));
+        cb.popup({
+            type: 'danger',
+            effect: {
+                type: 'flipin',
+                vel: 'fast',
+                dire: 'down'
+            },
+            offsetTop: 100,
+            css: {
+                'max-width': 400
+            },
+            items: [{
+                xtype: 'head',
+                css: {'min-height': 40},
+                items: [{
+                    xtype: 'span',
+                    glyphicon: 'remove',
+                    cls: 'pull-right',
+                    css: {
+                cursor: 'pointer',
+                        'padding-top': 4
+                    },
+                    listeners: {
+                        click: function(){
+                            cb.effect($(this).parent().parent(), {
+                                type: 'flipout',
+                                dire: 'up',
+                                fn: function(){
+                                    $(this).parent().remove();
+                                }
+                            });
+                        }
+                    }
+                },{
+                    xtype: 'div',
+                    size: 19,
+                    html: 'Eliminar registro',
+                    cls: 'text-center'
+                }]
+            },{
+                xtype: 'body',
+                defaults: {
+                    xtype: 'col',
+                    size: 6,
+                    align: 'center',
+                },
+                items: [{
+                    size: 12,
+                    text: '¿Estás seguro?',
+                    css: {
+                        'padding-bottom': 20
+                    }
+                }, {
+                    items: {
+                        xtype: 'button',
+                        text: 'Cancelar',
+                        click: function(){
+                            cb.effect($(this).parent().parent().parent(), {
+                                type: 'flipout',
+                                dire: 'up',
+                                fn: function(){
+                                    $(this).parent().remove();
+                                }
+                            });
+                        }
+                    }
+                }, {
+                    items: {
+                        xtype: 'button',
+                        type: 'danger',
+                        text: 'Eliminar',
+                        click: function () {
+                            var btn = this;
+                            cb.getStore(config.store).delete(data.record, function (res) {
+                                if (res.response == 'success') {
+                                    var store = cb.getStore(config.store);
+                                    store.setData(store.getData('record').filter(function (r) {
+                                        return r.id != data.record.id;
+                                    }), 'record');
+                                    cb.ctr('forms', 'browse', data.name);
+                                    cb.effect($(btn).parent().parent().parent(), {
+                                        type: 'flipout',
+                                        dire: 'up',
+                                        fn: function(){
+                                            $(this).parent().remove();
+                                        }
+                                    });
+                                } else {
+                                    console.error(res.data);
+                                }
+                                
+                            });
+                        }
+                    }
+                }]
+            }]
+        })
     },
 
     getInputFromType: function (data) {
@@ -503,5 +777,51 @@ cb.define({
         };
         input.name = data.field;
         return input;
+    },
+
+    updateRecord: function (data, records) {
+        var config = cb.cloneObject(this.getFormsConfig(data.name)),
+            store = cb.getStore(config.store),
+            rdata = store.getData('record');
+        if (!$.isArray(records)) {
+            records = [records];
+        }
+        records.forEach(function (d) {
+            d.id = parseInt(d.id);
+            // Replace data
+            if (rdata.filter(function (r) { return r.id == d.id }).length) {
+                var pos = rdata.map(function (r) { return r.id; }).indexOf(d.id);
+                rdata[pos] = d;
+            } else { // Add data
+                if (parseInt(rdata[0].id) < parseInt(rdata[1].id)) { // asc
+                    if (d.id < parseInt(rdata[0].id)) {
+                        rdata.unshift(d);
+                    } else if (d.id > parseInt(rdata.slice(-1)[0].id)) {
+                        rdata.push(d);
+                    } else {
+                        for (var i = 0; i < rdata.length; i ++) {
+                            if (d.id < parseInt(rdata[i].id)) {
+                                rdata.splice(i, 0, d);
+                                break;
+                            }
+                        }
+                    }
+                } else { // desc
+                    if (d.id > parseInt(rdata[0].id)) {
+                        rdata.unshift(d);
+                    } else if (d.id < parseInt(rdata.slice(-1)[0].id)) {
+                        rdata.push(d);
+                    } else {
+                        for (var i = 0; i < rdata.length; i ++) {
+                            if (d.id > parseInt(rdata[i].id)) {
+                                rdata.splice(i, 0, d);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        
     }
 });
