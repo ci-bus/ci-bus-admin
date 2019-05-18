@@ -12,7 +12,8 @@
                     'user' => array(
                         'type' => 'VARCHAR',
                         'length' => 100,
-                        'translate' => 'User'
+                        'translate' => '{user}',
+                        'required' => true
                     ),
                     'pass' => array(
                         'type' => 'VARCHAR',

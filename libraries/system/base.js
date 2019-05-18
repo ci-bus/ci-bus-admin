@@ -458,11 +458,10 @@ cb.base.store = {
     {
         if (data !== undefined) {
             if (typeof field == 'string') {
-                var newData = this.getData(field);
-                $.merge(newData, data);
+                var newData = cb.merge(this.getData(field), data);
                 this.setData(newData, field);
             } else {
-                $.merge(this.data, data);
+                cb.merge(this.data, data);
             }
             this.storelink(field);
         }
@@ -1346,7 +1345,7 @@ cb.ctr = function(ctr, fun)
 {
     var vals = Array.prototype.slice.call(arguments, 2);
     if (cb.module.controller[ctr] && $.type(cb.module.controller[ctr][fun]) == 'function') {
-        return cb.module.controller[ctr][fun](vals.length === 1? vals[0]: vals);
+        return cb.module.controller[ctr][fun](vals.length === 1? vals[0]: vals.length? vals: undefined);
     } else {
         console.error('Undefined funcion \'' + fun + '\' in controller \'' + ctr + '\'');
     }
@@ -1674,6 +1673,16 @@ cb.deleteToObject = function (obj, prop) {
     }
     
     return obj;
+};
+
+cb.merge = function (data1, data2) {
+    if ($.isPlainObject(data1) && $.isPlainObject(data2)) {
+        return cb.mergeTwoObjects(data1, data2);
+    } else if ($.isArray(data1) && $.isArray(data2)) {
+        return data1.concat(data2);
+    } else {
+        return [data1, data2];
+    }
 };
 
 cb.mergeTwoObjects = function (obj, obj2, prop) {
@@ -2966,19 +2975,36 @@ cb.module.bootstrapComponent = {
             $(ele).change(function() {
                 if ($(this).prop('checked')) {
                     var v = this.getOpt('on').value? this.getOpt('on').value: 1;
+                    if (this.getOpt('listeners') && $.isFunction(this.getOpt('listeners').on)) {
+                        this.getOpt('listeners').on(v);
+                    }
+                    if ($.isFunction(this.getOpt('on').fun)) {
+                        this.getOpt('on').fun(v);
+                    }
                 } else {
                     var v = this.getOpt('off').value? this.getOpt('off').value: 0;
+                    if (this.getOpt('listeners') && $.isFunction(this.getOpt('listeners').off)) {
+                        this.getOpt('listeners').off(v);
+                    }
+                    if ($.isFunction(this.getOpt('off').fun)) {
+                        this.getOpt('off').fun(v);
+                    }
                 }
                 $(this).parent().find('input').val(v);
+                if (this.getOpt('listeners') && $.isFunction(this.getOpt('listeners').change)) {
+                    this.getOpt('listeners').change(v, $(this).parent().find('input'));
+                }
             });
-            if(ele.getOpt('value') == ele.getOpt('on').value || ele.getOpt('value') == 'on') {
+            var opt = ele.getOpt();
+            opt = cb.setRecordValuesToOpt(opt, ele.getRecord());
+            if (opt.value == ele.getOpt('on').value || ele.getOpt('value') == 'on') {
                 $(ele).bootstrapToggle('on');
             }
             cb.commonProp($(ele).parent(), ele.getOpt());
             if (ele.getOpt('disabled')) {
                 $(ele).attr('disabled', 'disabled');
             }
-        }
+        };
                 
         return ele;
     }
@@ -3244,6 +3270,9 @@ cb.props = {
     'zIndex': function (ele, opt) {
         $(ele).css('z-index', opt.zIndex);
     },
+    'textalign': function (ele, opt) {
+        $(ele).css('text-align', opt.textalign);
+    },
     'pull': function(ele, opt) {
         $(ele).addClass('pull-'+opt.pull);
     },
@@ -3257,7 +3286,21 @@ cb.props = {
         if (opt) $(ele).attr('disable', 'disable');
     },
     'disabled': function(ele, opt) {
-        $(ele).attr('disabled', 'disabled');
+        if (opt) $(ele).attr('disabled', 'disabled');
+    },
+    'required': function (ele, opt) {
+        if (opt) {
+            $(ele).prop('required', true);
+        } else {
+            $(ele).removeAttr('required');
+        }
+    },
+    'checked': function (ele, opt) {
+        if (opt) {
+            $(ele).prop('checked', true);
+        } else {
+            $(ele).removeAttr('checked');
+        }
     },
     'name': function(ele, opt) {
         if (!opt.noname) {
@@ -3756,13 +3799,18 @@ cb.getVarsFromIfString = function (ifString) {
 
 cb.setRecordValuesToOpt = function (opt, record) {
     if (typeof opt == 'string' && opt.indexOf('{') >= 0) {
-        for (ix in record) {
+        while (ix = opt.substr(opt.indexOf('{') + 1, opt.indexOf('}') - opt.indexOf('{') - 1)) {
             // Convert DOM element to HTML string
-            if (cb.isElement(record[ix])) {
-                record[ix] = $("<span></span>").append(record[ix]).html();
+            if (cb.isElement(cb.fetchFromObject(record, ix))) {
+                let dt = $("<span></span>").append(cb.fetchFromObject(record, ix)).html();
+                cb.putToObject(record, dt, ix);
             }
             // Replace {field} to record value
-            opt = opt.replace(new RegExp('{'+ix+'}',"g"), record[ix]);
+            var value = cb.fetchFromObject(record, ix);
+            if (!value && value !== 0) {
+                value = '';
+            }
+            opt = opt.replace(new RegExp('{'+ix+'}',"g"), value);
         }
         // Clear missing
         opt = opt.replace(/{.+}/, '');

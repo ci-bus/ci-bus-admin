@@ -80,6 +80,28 @@ cb.define({
 
                     new: {
                         
+                    },
+
+                    // Events
+                    preInsert: function (data) {
+                        console.log('Creating user', data);
+                        // data can be changed
+                        return data;
+                    },
+                    posInsert: function (res) {
+                        if (res.response == 'success') {
+                            console.log('User created');
+                        }
+                        // res can be changed
+                        return res;
+                    }/*,
+                    preUpdate: function () {},
+                    posUpdate: function () {},
+                    preDelete: function () {},
+                    posDelete: function () {}
+                    */,
+                    translate: {
+                        user: 'User'
                     }
                 });
             });

@@ -48,6 +48,13 @@ cb.define({
 
     setFormsConfig: function (config) {
         this.forms_config[config.name] = config;
+        if (config.translate) {
+            if ($.isPlainObject(config.translate)) {
+                cb.getStore('translate').mergeData(config.translate);
+            }
+        } else {
+            console.error('ERROR translate needs to be object', config.translate);
+        }
     },
 
     getFormsConfig: function (name) {
@@ -90,11 +97,13 @@ cb.define({
         for (field in defStore.getData('fields')) {
             if (!config.browse || !config.browse.fields || config.browse.fields.indexOf(field) > -1) {
                 var f = defStore.getData('fields')[field];
-                opt.columns.push({
-                    name: f['translate'],
-                    text: '{' + field + '}',
-                    type: '{ctype}'
-                });
+                var column = {
+                    name: f['translate']
+                };
+                cb.setRecordValuesToOpt(column, cb.getStore('translate').getData());
+                column.text = '{' + field + '}';
+                column.type = '{ctype}';
+                opt.columns.push(column);
             }
         }
         // Add buttons refresh, search and new
@@ -207,6 +216,7 @@ cb.define({
                     margin: '0 10px 0 0',
                     items: [{
                         xtype: 'label',
+                        record: cb.getStore('translate').getData(),
                         text: f['translate']
                     }, {
                         xtype: 'thumbnail',
@@ -264,7 +274,7 @@ cb.define({
                 glyphicon: 'erase',
                 text: ' {delete}',
                 click: function () {
-                    cb.ctr('forms', 'delete', data);
+                    cb.ctr('forms', 'deleteConfirm', data);
                 }
             }]
         };
@@ -350,6 +360,7 @@ cb.define({
                     margin: '0 10px 0 0',
                     items: [{
                         xtype: 'label',
+                        store: 'translate',
                         text: f['translate']
                     }, cb.ctr('forms', 'getInputFromType', {
                         field: field,
@@ -495,6 +506,7 @@ cb.define({
                     margin: '0 10px 0 0',
                     items: [{
                         xtype: 'label',
+                        store: 'translate',
                         text: f['translate']
                     }, cb.ctr('forms', 'getInputFromType', {
                         field: field,
@@ -614,7 +626,19 @@ cb.define({
             form.serializeArray().forEach(function (d) {
                 dataToSend[d['name']] = d['value'];
             });
+            if ($.isFunction(config.preUpdate)) {
+                var dataRes = config.preUpdate(dataToSend);
+                if ($.type(dataRes) === $.type(dataToSend)) {
+                    dataToSend = dataRes;
+                }
+            }
             cb.getStore(config.store).post(dataToSend, function (res) {
+                if ($.isFunction(config.posUpdate)) {
+                    var resRes = config.posUpdate(res);
+                    if ($.type(resRes) === $.type(res)) {
+                        res = resRes;
+                    }
+                }
                 data.record = res.data.record[0];
                 ctr.updateRecord(data, res.data.record[0]);
                 ctr.view(data);
@@ -625,7 +649,19 @@ cb.define({
             form.serializeArray().forEach(function (d) {
                 dataToSend[d['name']] = d['value'];
             });
+            if ($.isFunction(config.preInsert)) {
+                var dataRes = config.preInsert(dataToSend);
+                if ($.type(dataRes) === $.type(dataToSend)) {
+                    dataToSend = dataRes;
+                }
+            }
             cb.getStore(config.store).put(dataToSend, function (res) {
+                if ($.isFunction(config.posInsert)) {
+                    var resRes = config.posInsert(res);
+                    if ($.type(resRes) === $.type(res)) {
+                        res = resRes;
+                    }
+                }
                 if (res.response == 'success') {
                     ctr.updateRecord(data, res.data.record[0]);
                     cb.ctr('forms', 'browse', data.name);
@@ -636,13 +672,17 @@ cb.define({
         }
     },
 
+    validateForm: function (formName) {
+        var form = cb.getCmp("form[name='" + formName + "']");
+        debugger;
+    },
+
     /*-----------*\
     |    DELETE   |
     \*-----------*/
-    delete: function (data) {
-        var ctr = this,
-            config = cb.cloneObject(this.getFormsConfig(data.name));
+    deleteConfirm: function (data) {
         cb.popup({
+            id: 'popup-delete-' + data.name,
             type: 'danger',
             effect: {
                 type: 'flipin',
@@ -714,31 +754,48 @@ cb.define({
                         type: 'danger',
                         text: 'Eliminar',
                         click: function () {
-                            var btn = this;
-                            cb.getStore(config.store).delete(data.record, function (res) {
-                                if (res.response == 'success') {
-                                    var store = cb.getStore(config.store);
-                                    store.setData(store.getData('record').filter(function (r) {
-                                        return r.id != data.record.id;
-                                    }), 'record');
-                                    cb.ctr('forms', 'browse', data.name);
-                                    cb.effect($(btn).parent().parent().parent(), {
-                                        type: 'flipout',
-                                        dire: 'up',
-                                        fn: function(){
-                                            $(this).parent().remove();
-                                        }
-                                    });
-                                } else {
-                                    console.error(res.data);
-                                }
-                                
-                            });
+                            cb.ctr('forms', 'delete', data);
                         }
                     }
                 }]
             }]
         })
+    },
+
+    delete: function (data) {
+        var config = cb.cloneObject(this.getFormsConfig(data.name));
+
+        if ($.isFunction(config.preDelete)) {
+            var dataRes = config.preDelete(data.record);
+            if ($.type(dataRes) === $.type(data.record)) {
+                data.record = dataRes;
+            }
+        }
+        cb.getStore(config.store).delete(data.record, function (res) {
+            if ($.isFunction(config.posDelete)) {
+                var resRes = config.posDelete(res);
+                if ($.type(resRes) === $.type(res)) {
+                    res = resRes;
+                }
+            }
+            if (res.response == 'success') {
+                var store = cb.getStore(config.store);
+                store.setData(store.getData('record').filter(function (r) {
+                    return r.id != data.record.id;
+                }), 'record');
+                cb.ctr('forms', 'browse', data.name);
+                cb.effect('#popup-delete-' + data.name, {
+                    type: 'flipout',
+                    dire: 'up',
+                    fn: function(){
+                        $(this).parent().remove();
+                    }
+                });
+            } else {
+                console.error(res.data);
+            }
+            
+        });
     },
 
     getInputFromType: function (data) {
@@ -772,6 +829,8 @@ cb.define({
             input.maxlength = data.type.length;
         }
         input.placeholder = data.type.translate;
+        input.store = 'translate';
+        input.required = data.type.required;
         input.css = {
             'margin-bottom': 10
         };
